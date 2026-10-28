@@ -40,6 +40,9 @@
   --rand: #8a8275;
   --schleier: rgb(242 237 228 / 0.92);
   --blatt-filter: none;
+  /* Ein Filter, auch ein kaum wirksamer, lässt Chromium die verkleinerte HTML-Seite als Ganzes
+     rechnen; die Schrift wird dann grau statt mit bunten Farbsäumen geglättet */
+  --rahmen-filter: grayscale(0.001);
   --blatt-grund: #fff;
   --schrift-lesen: "Literata", "Iowan Old Style", Georgia, "Times New Roman", serif;
   --schrift-ui: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -59,6 +62,7 @@
     --rand: #80786c;
     --schleier: rgb(25 23 20 / 0.92);
     --blatt-filter: brightness(0.86);
+    --rahmen-filter: grayscale(0.001) brightness(0.86);
     --blatt-grund: #dbdbdb;
     color-scheme: dark;
   }
@@ -75,6 +79,7 @@
   --rand: #80786c;
   --schleier: rgb(25 23 20 / 0.92);
   --blatt-filter: brightness(0.86);
+  --rahmen-filter: grayscale(0.001) brightness(0.86);
   --blatt-grund: #dbdbdb;
   color-scheme: dark;
 }
@@ -289,6 +294,8 @@ body {
 .steuerung-rechts #btn-vollbild:not([hidden]) ~ .miniseite { margin-left: 0; }
 .miniseite-rahmen { position: relative; display: block; }
 .miniseite .marke-zeile { background: var(--fix); opacity: 0.35; }
+/* Eine HTML-Seite ist meist länger als hoch; die Miniseite zeigt dann einen Ausschnitt um die Lesestelle */
+.miniseite.html { height: 92px; }
 @media (min-width: 980px) {
   .miniseite { display: none; }
 }
@@ -445,6 +452,31 @@ body {
 .knopf[aria-disabled="true"]:hover { background: transparent; }
 .blatt { display: block; width: 100%; }
 .blatt canvas { display: block; width: 100%; height: auto; filter: var(--blatt-filter); }
+/* HTML-Seiten stehen in einem Rahmen ohne Skripte, der in voller Breite gesetzt und dann verkleinert
+   wird. Klicks gehen an die Seite von Fixpunkt, nicht an Verweise im Dokument. */
+.blatt.html { position: relative; overflow: hidden; background: #fff; }
+.html-rahmen {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  border: 0;
+  background: #fff;
+  transform-origin: 0 0;
+  pointer-events: none;
+  filter: var(--rahmen-filter);
+}
+.messrahmen {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 820px;
+  height: 1000px;
+  border: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.seiten.html .seitenkopf, .seiten.html .leiste { display: none; }
 .marke-zeile {
   position: absolute;
   left: 0;
@@ -591,6 +623,13 @@ body {
   text-align: center;
   font: 600 1rem/1.2 var(--schrift-ui);
   font-variant-numeric: tabular-nums;
+}
+.gross.html .gross-titel {
+  max-width: min(46vw, 420px);
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .gross-kopf .lupe { margin-left: auto; }
 .gross-hinweis { flex: 1 0 100%; margin: 0; color: var(--tinte-leise); font-size: 0.875rem; }
@@ -771,7 +810,7 @@ body {
           <span class="seite-nr" id="seite-nr" aria-live="polite">Seite 1</span>
           <button type="button" class="knopf klein" id="seite-vor" aria-label="Nächste Seite">&rsaquo;</button>
         </div>
-        <div class="vorschau" id="vorschau" role="img" aria-label="Aktuelle PDF-Seite mit markierter Lesestelle">
+        <div class="vorschau" id="vorschau" role="img" aria-label="Aktuelle Seite mit markierter Lesestelle">
           <div class="seitenrahmen" id="seitenrahmen">
             <div class="blatt" id="blatt"></div>
             <div class="marke-zeile" id="marke-zeile" hidden></div>
@@ -837,6 +876,12 @@ body {
   const SPALTE = 340;
   const VORSCHAU_SCHMAL = 300;
   const MINISEITE = 68;
+  // HTML-Seiten: Satzbreite der kleinen Seite und der Miniseite, schmalste Satzbreite der Großansicht,
+  // Höhe der Miniseite und Obergrenze für die Höhe eines Rahmens
+  const HTML_BREITE = 820;
+  const HTML_SCHMAL = 320;
+  const MINISEITE_HOEHE = 92;
+  const HTML_HOEHE_MAX = 200000;
   const BREIT = window.matchMedia('(min-width: 980px)');
   // Wahr nur in der Fassung für GitHub Pages, bauen.js setzt es dort
   const WEB = true;
@@ -859,7 +904,7 @@ body {
     'Der rote Buchstabe sitzt etwas links von der Wortmitte. Blickbewegungsstudien haben gezeigt, dass das Auge ein Wort an dieser Stelle am schnellsten erkennt. Bei kurzen Wörtern ist es der zweite Buchstabe, bei sehr langen der fünfte.',
     'Fangen Sie mit 250 Wörtern pro Minute an und steigern Sie das Tempo erst, wenn Sie dem Text auf dieser Stufe mühelos folgen können. Der Pfeil nach oben macht schneller, der Pfeil nach unten langsamer. Wer den Faden verliert, springt mit dem Pfeil nach links an den Satzanfang zurück. Die Leertaste hält an und startet wieder, auf dem Handy genügt ein Tippen auf das Wort.',
     'Allerdings hat das Verfahren eine Grenze. Beim gewohnten Lesen springt das Auge auch zurück, sobald ein Satz unklar bleibt. Diese Rücksprünge fehlen hier. Mit steigendem Tempo leidet deshalb das Verständnis, vor allem bei verschachtelten Sätzen. Wer morgens in der Bahn die Nachrichten oder eine lange Mail liest, kommt mit dem hohen Tempo meist gut zurecht. Einen schwierigen Fachtext lesen Sie besser langsamer.',
-    'Eigene Texte fügen Sie über „Text einfügen“ ein. Eine PDF öffnen Sie über „Datei öffnen“, danach läuft neben dem Wort die Seite mit und markiert Ihre Stelle. Die Datei bleibt dabei auf Ihrem Gerät.',
+    'Eigene Texte fügen Sie über „Text einfügen“ ein. Eine PDF oder HTML-Datei öffnen Sie über „Datei öffnen“, danach läuft neben dem Wort die Seite mit und markiert Ihre Stelle. Die Datei bleibt dabei auf Ihrem Gerät.',
   ].join('\n\n');
 
   const $ = (id) => document.getElementById(id);
@@ -897,6 +942,9 @@ body {
     lib: null, doc: null, seiten: [], anker: [], starts: [], gewuenscht: 0, beobachter: null,
     warteschlange: Promise.resolve(),
   };
+  // Geöffnete HTML-Seite: vorbereiteter Quelltext für die Rahmen und die Stücke des Lesetexts mit
+  // ihrer Stelle im Dokument. stand zählt jedes neue Dokument, damit späte Ladevorgänge ins Leere gehen.
+  const htmlSeite = { aktiv: false, quelltext: '', segmente: [], stand: 0 };
 
   const zahl = (n) => n.toLocaleString('de-DE');
   const bewegungErlaubt = () => !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1041,6 +1089,7 @@ body {
     aktualisiereLauf();
     markiereKontext(i, scroll);
     if (pdf.doc) markiereSeite(i);
+    else if (htmlSeite.aktiv) markiereAlle();
   }
 
   function aktualisiereLauf() {
@@ -1291,14 +1340,33 @@ body {
   }
 
   function nimmBeispiel() {
-    pdfSchliessen(true);
+    dokumentSchliessen(true);
     setzeText(BEISPIEL, { art: 'beispiel', name: 'Beispieltext' }, 0);
   }
 
   function nimmText(text, name) {
-    pdfSchliessen(true);
+    dokumentSchliessen(true);
     setzeText(text, { art: 'text', name }, 0);
   }
+
+  function dokumentSchliessen(vergessen) {
+    pdfSchliessen(vergessen);
+    htmlSchliessen(vergessen);
+  }
+
+  // Liest Bytes als Text in der Kodierung, die eine HTML-Datei im Kopf angibt, sonst als UTF-8
+  function textAusBytes(bytes) {
+    const kopf = String.fromCharCode(...bytes.subarray(0, 2048));
+    const angabe = /<meta[^>]+charset\s*=\s*["']?([\w-]+)/i.exec(kopf);
+    try {
+      return new TextDecoder(angabe ? angabe[1].toLowerCase() : 'utf-8').decode(bytes);
+    } catch {
+      return new TextDecoder('utf-8').decode(bytes);
+    }
+  }
+
+  const siehtNachHtmlAus = (text) => /^\s*(?:<!--[\s\S]*?-->\s*)*<(?:!doctype\s+html|html|head|body|meta|title|article|main|section|div|p|h[1-6])\b/i
+    .test(text.slice(0, 4000));
 
   function htmlZuText(html) {
     const vorbereitet = html
@@ -1330,10 +1398,13 @@ body {
       await oeffnePdf(datei, name);
       return;
     }
-    if (typ.startsWith('text/') || ['txt', 'text', 'md', 'markdown', 'html', 'htm'].includes(endung)) {
+    if (endung === 'html' || endung === 'htm' || typ === 'text/html' || typ === 'application/xhtml+xml') {
+      await oeffneHtml(textAusBytes(new Uint8Array(await datei.arrayBuffer())), name);
+      return;
+    }
+    if (typ.startsWith('text/') || ['txt', 'text', 'md', 'markdown'].includes(endung)) {
       let text = await datei.text();
-      if (endung === 'html' || endung === 'htm' || typ === 'text/html') text = htmlZuText(text);
-      else if (endung === 'md' || endung === 'markdown') text = markdownZuText(text);
+      if (endung === 'md' || endung === 'markdown') text = markdownZuText(text);
       if (!BUCHSTABE.test(text)) {
         melde('Die Datei enthält keinen lesbaren Text.', true);
         return;
@@ -1478,7 +1549,16 @@ body {
       melde('Diese PDF enthält keinen auslesbaren Text. Vermutlich ist sie eingescannt.', true);
       return false;
     }
+    // Geteilte PDFs kommen ohne Dateinamen; Safari schreibt den Seitentitel in die Metadaten
+    if (!name) {
+      try {
+        const angaben = await doc.getMetadata();
+        name = String((angaben && angaben.info && angaben.info.Title) || '').trim();
+      } catch { /* ohne Metadaten */ }
+      name = name || 'Geteilte PDF';
+    }
     pdfSchliessen(false);
+    htmlSchliessen(true);
     Object.assign(pdf, { lib, doc, seiten: ergebnis.seiten, anker: ergebnis.anker });
     setzeText(ergebnis.text, { art: 'pdf', name }, startPos);
     verankere();
@@ -1508,15 +1588,431 @@ body {
     waehleAnsicht('text');
   }
 
+  // ---------- HTML-Seiten ----------
+  // Eine HTML-Datei erscheint mit Bildern und Gestaltung. Sie steht in Rahmen mit
+  // sandbox="allow-same-origin": Skripte, Formulare und Verweise der Seite laufen nicht, Fixpunkt kann
+  // das Dokument aber von außen vermessen. Den Lesetext liest ein unsichtbarer Messrahmen aus dem
+  // gesetzten Dokument, was die Seite verbirgt, liest Fixpunkt also nicht vor. Jedes Stück des
+  // Lesetexts kennt seinen Textknoten und Zeichenversatz. Alle Rahmen erhalten denselben Quelltext,
+  // deshalb stehen ihre Textknoten in derselben Reihenfolge.
+
+  const HTML_AUSLASSEN = new Set(['script', 'style', 'noscript', 'template', 'head', 'title', 'svg', 'math', 'select',
+    'option', 'datalist', 'textarea', 'button', 'nav', 'footer', 'iframe', 'object', 'canvas', 'video', 'audio']);
+  const HTML_BLOCK = /^(?:block|flow-root|list-item|flex|grid|table|table-row|table-row-group|table-header-group|table-footer-group|table-caption)$/;
+  const TRENNER = ['', ' ', '\n', '\n\n'];
+
+  const sichereAdresse = (adresse) => {
+    const a = String(adresse || '').trim();
+    return /^https?:\/\/[^\s"'<>]+$/i.test(a) ? a : '';
+  };
+
+  // Bereitet den Quelltext für die Rahmen vor: ohne Skripte, eingebettete Fremdseiten und
+  // Weiterleitungen, mit Bildern, die sonst erst ein Skript nachlädt, und ohne Verweis auf Fixpunkt
+  // beim Nachladen. Seiten, die sich nach der Fensterhöhe richten, wüchsen sonst mit jedem Anpassen
+  // des Rahmens weiter.
+  function htmlVorbereiten(quelltext, basis) {
+    const doc = new DOMParser().parseFromString(quelltext, 'text/html');
+    doc.querySelectorAll('script, iframe, frame, frameset, object, embed, portal, meta[http-equiv], '
+      + 'link[rel~="preload"], link[rel~="prefetch"], link[rel~="manifest"]').forEach((knoten) => knoten.remove());
+    for (const bild of doc.querySelectorAll('img, source')) {
+      for (const [von, nach] of [['data-src', 'src'], ['data-lazy-src', 'src'], ['data-srcset', 'srcset']]) {
+        const wert = bild.getAttribute(von);
+        const bisher = bild.getAttribute(nach) || '';
+        if (wert && (!bisher || bisher.startsWith('data:'))) bild.setAttribute(nach, wert);
+      }
+      bild.removeAttribute('loading');
+    }
+    doc.querySelectorAll('[autoplay]').forEach((knoten) => knoten.removeAttribute('autoplay'));
+    // Ereignisattribute liefen ohnehin nicht, meldeten aber jeden Versuch als Fehler in der Konsole
+    for (const knoten of doc.querySelectorAll('*')) {
+      for (const name of knoten.getAttributeNames()) if (/^on/i.test(name)) knoten.removeAttribute(name);
+    }
+    const verweis = doc.createElement('meta');
+    verweis.setAttribute('name', 'referrer');
+    verweis.setAttribute('content', 'no-referrer');
+    const stil = doc.createElement('style');
+    stil.textContent = 'html,body{height:auto!important;min-height:0!important}';
+    doc.head.prepend(verweis);
+    doc.head.append(stil);
+    if (basis && !doc.querySelector('base[href]')) {
+      const b = doc.createElement('base');
+      b.setAttribute('href', basis);
+      doc.head.prepend(b);
+    }
+    return `<!doctype html>${doc.documentElement.outerHTML}`;
+  }
+
+  function neuerHtmlRahmen(quelltext, breite, klasse) {
+    const rahmen = document.createElement('iframe');
+    rahmen.className = klasse;
+    rahmen.setAttribute('sandbox', 'allow-same-origin');
+    rahmen.setAttribute('referrerpolicy', 'no-referrer');
+    rahmen.setAttribute('aria-hidden', 'true');
+    rahmen.tabIndex = -1;
+    rahmen.style.width = `${breite}px`;
+    rahmen.srcdoc = quelltext;
+    return rahmen;
+  }
+
+  // Wartet, bis der Rahmen sein Dokument samt Bildern und Stilen geladen hat, höchstens vier Sekunden;
+  // danach genügt das eingelesene Dokument. Fixpunkt fragt den Zustand ab, weil WebKit Ereignisse aus
+  // einem Rahmen ohne Skripte nicht an die Elternseite meldet.
+  function htmlGeladen(rahmen, ms = 4000) {
+    return new Promise((ok) => {
+      const ab = performance.now();
+      const pruefe = () => {
+        let doc = null;
+        try { doc = rahmen.contentDocument; } catch { doc = null; }
+        const eigenes = Boolean(doc) && doc.URL === 'about:srcdoc';
+        const zeit = performance.now() - ab;
+        if (!rahmen.isConnected || (eigenes && doc.readyState === 'complete')
+          || (eigenes && doc.readyState === 'interactive' && zeit > ms) || zeit > ms * 2) {
+          ok(eigenes && rahmen.isConnected ? doc : null);
+          return;
+        }
+        setTimeout(pruefe, 40);
+      };
+      pruefe();
+    });
+  }
+
+  function textKnoten(doc) {
+    const liste = [];
+    if (!doc || !doc.body) return liste;
+    const gaenger = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+    for (let k = gaenger.nextNode(); k; k = gaenger.nextNode()) liste.push(k);
+    return liste;
+  }
+
+  // Lesebereich: der längste Artikel, wenn er die Hälfte des Texts enthält, sonst der Hauptteil, wenn
+  // er wenigstens ein Drittel enthält. Menüs, Anrisse und Fußzeilen bleiben so meist draußen.
+  function leseWurzel(doc) {
+    const laenge = (k) => (k.textContent || '').replace(/\s+/g, '').length;
+    const gesamt = laenge(doc.body) || 1;
+    let artikel = null;
+    let artikelLaenge = 0;
+    for (const k of doc.body.querySelectorAll('article')) {
+      if (k.parentElement && k.parentElement.closest('article')) continue;
+      const l = laenge(k);
+      if (l > artikelLaenge) {
+        artikel = k;
+        artikelLaenge = l;
+      }
+    }
+    if (artikel && artikelLaenge >= gesamt / 2) return artikel;
+    const haupt = doc.body.querySelector('main, [role="main"]');
+    if (haupt && laenge(haupt) >= gesamt / 3) return haupt;
+    return doc.body;
+  }
+
+  // Liest den sichtbaren Text des Lesebereichs. Absätze, Listenpunkte und Tabellenzeilen werden zu
+  // Absätzen, Tabellenzellen und Zeilenumbrüche zu Zeilen. Zu jedem Stück merkt sich segmente, in
+  // welchem Textknoten und an welchem Zeichen es steht.
+  function htmlLesetext(doc) {
+    const nummer = new Map(textKnoten(doc).map((k, i) => [k, i]));
+    const segmente = [];
+    let text = '';
+    let trenner = 0;
+    const mindestens = (stufe) => { if (stufe > trenner) trenner = stufe; };
+    // Nur für Bildschirmleser gedachte Hinweise sind absolut gesetzt und ein, zwei Pixel groß
+    const sichtbar = (knoten, stil) => {
+      if (stil.display === 'contents') return true;
+      if (typeof knoten.checkVisibility === 'function' && !knoten.checkVisibility()) return false;
+      if (stil.position !== 'absolute') return true;
+      const r = knoten.getBoundingClientRect();
+      return r.width > 2 || r.height > 2;
+    };
+    function besuche(knoten, versteckt) {
+      if (knoten.nodeType === 3) {
+        if (versteckt) return;
+        const daten = knoten.data;
+        const muster = /\S+/g;
+        let t;
+        let ende = 0;
+        while ((t = muster.exec(daten))) {
+          if (t.index > ende) mindestens(1);
+          if (text) text += TRENNER[trenner];
+          trenner = 0;
+          segmente.push({ aus: text.length, laenge: t[0].length, knoten: nummer.get(knoten), off: t.index });
+          text += t[0];
+          ende = t.index + t[0].length;
+        }
+        if (ende < daten.length) mindestens(1);
+        return;
+      }
+      if (knoten.nodeType !== 1) return;
+      const name = knoten.localName;
+      if (name === 'br') {
+        mindestens(2);
+        return;
+      }
+      if (HTML_AUSLASSEN.has(name) || knoten.hidden || knoten.getAttribute('aria-hidden') === 'true') return;
+      const stil = getComputedStyle(knoten);
+      if (stil.display === 'none' || stil.position === 'fixed' || !sichtbar(knoten, stil)) return;
+      const stufe = HTML_BLOCK.test(stil.display) ? 3 : stil.display === 'table-cell' ? 2 : 0;
+      mindestens(stufe);
+      const unsichtbar = stil.visibility !== 'visible';
+      for (const kind of knoten.childNodes) besuche(kind, unsichtbar);
+      mindestens(stufe);
+    }
+    besuche(leseWurzel(doc), false);
+    return { text, segmente };
+  }
+
+  // Feste Kopfleisten, Hinweise und Knöpfe stünden im hohen Rahmen alle oben oder unten über dem Text.
+  // Sie fallen weg, im Lesetext fehlen sie ebenfalls.
+  function festeAusblenden(doc) {
+    for (const knoten of doc.body.querySelectorAll('*')) {
+      if (getComputedStyle(knoten).position === 'fixed') knoten.style.setProperty('display', 'none', 'important');
+    }
+  }
+
+  async function oeffneHtml(quelltext, name, { basis = '', startPos = 0, still = false } = {}) {
+    pause(false);
+    melde('Seite wird aufbereitet …');
+    const vorbereitet = htmlVorbereiten(quelltext, sichereAdresse(basis));
+    const mess = neuerHtmlRahmen(vorbereitet, HTML_BREITE, 'messrahmen');
+    document.body.append(mess);
+    let ergebnis = null;
+    let titel = '';
+    try {
+      const doc = await htmlGeladen(mess);
+      if (doc && doc.body) {
+        ergebnis = htmlLesetext(doc);
+        titel = (doc.title || '').replace(/\s+/g, ' ').trim();
+      }
+    } catch {
+      ergebnis = null;
+    } finally {
+      mess.remove();
+    }
+    const anzeigename = name || titel || 'Geteilte Seite';
+    if (!ergebnis || !BUCHSTABE.test(ergebnis.text)) {
+      // Lässt sich die Seite hier nicht setzen, bleibt der reine Text
+      const text = htmlZuText(quelltext);
+      if (!BUCHSTABE.test(text)) {
+        melde('Diese Seite enthält keinen lesbaren Text, jedenfalls nicht ohne ihre Skripte.', true);
+        return false;
+      }
+      nimmText(text, anzeigename);
+      melde(`„${anzeigename}“ geöffnet, ${zahl(z.woerter.length)} Wörter. Die Seite selbst lässt sich hier nicht zeigen.`);
+      return true;
+    }
+    pdfSchliessen(true);
+    htmlSchliessen(false);
+    Object.assign(htmlSeite, { aktiv: true, quelltext: vorbereitet, segmente: ergebnis.segmente });
+    htmlSeite.stand++;
+    el.seiten.classList.add('html');
+    el.gross.classList.add('html');
+    setzeText(ergebnis.text, { art: 'html', name: anzeigename }, startPos);
+    waehleAnsicht('seiten');
+    zeichneHtml(klein);
+    zeigeMiniseite();
+    melde(still ? '' : `„${anzeigename}“ geöffnet, ${zahl(z.woerter.length)} Wörter.`);
+    if (!still) htmlMerken(quelltext, anzeigename, sichereAdresse(basis));
+    return true;
+  }
+
+  function htmlSchliessen(vergessen) {
+    if (vergessen) htmlVergessen();
+    if (!htmlSeite.aktiv) return;
+    schliesseGross();
+    leere(klein);
+    leere(gross);
+    leere(miniseite);
+    el.miniseite.hidden = true;
+    el.miniseite.classList.remove('html');
+    el.seiten.classList.remove('html');
+    el.gross.classList.remove('html');
+    Object.assign(htmlSeite, { aktiv: false, quelltext: '', segmente: [] });
+    htmlSeite.stand++;
+    waehleAnsicht('text');
+  }
+
+  // Baut den Rahmen einer Ansicht auf, einmal je Dokument. Die kleine Seite und die Miniseite setzen
+  // die Seite 820 px breit und verkleinern sie, die Großansicht bricht sie in Fensterbreite um.
+  async function zeichneHtml(a, optionen = {}) {
+    if (a.htmlStand === htmlSeite.stand) {
+      passe(a, optionen);
+      return;
+    }
+    leere(a);
+    const stand = htmlSeite.stand;
+    a.htmlStand = stand;
+    a.b1 = a === gross ? grossSatzbreite() : HTML_BREITE;
+    const rahmen = neuerHtmlRahmen(htmlSeite.quelltext, a.b1, 'html-rahmen');
+    a.rahmenHtml = rahmen;
+    a.blatt.classList.add('html');
+    a.blatt.replaceChildren(rahmen);
+    setzeBreite(a, a.soll());
+    const doc = await htmlGeladen(rahmen);
+    if (stand !== htmlSeite.stand || a.rahmenHtml !== rahmen) return;
+    if (!doc || !doc.body) {
+      melde('Die Seite ließ sich nicht darstellen. Den Text zeigt die Ansicht „Text“.', true);
+      return;
+    }
+    festeAusblenden(doc);
+    Object.assign(a, { doc, knoten: textKnoten(doc), knotenIndex: null, seite: 1, folge: null });
+    a.beobachter = new ResizeObserver(() => {
+      cancelAnimationFrame(a.hoeheBild);
+      a.hoeheBild = requestAnimationFrame(() => { if (htmlHoehe(a)) markiere(a, { ruhig: true }); });
+    });
+    a.beobachter.observe(doc.documentElement);
+    htmlHoehe(a);
+    a.fenster.scrollTo(0, 0);
+    passe(a, { sofort: true, ...optionen });
+    if (a === klein) kleinFokus();
+  }
+
+  // Stellt den Rahmen auf die Höhe seines Dokuments. Wächst eine Seite nur, weil sie sich nach der
+  // Rahmenhöhe richtet, endet das nach einigen Runden.
+  function htmlHoehe(a) {
+    if (!a.doc || !a.doc.documentElement) return false;
+    const h = Math.min(HTML_HOEHE_MAX, Math.max(1, Math.ceil(a.doc.documentElement.getBoundingClientRect().height)));
+    if (Math.abs(h - a.hoehe) < 2) return false;
+    const jetzt = performance.now();
+    a.hoeheRunden = jetzt - a.hoeheZeit < 1000 ? a.hoeheRunden + 1 : 0;
+    a.hoeheZeit = jetzt;
+    if (a.hoeheRunden > 8) return false;
+    a.hoehe = h;
+    htmlMasse(a);
+    return true;
+  }
+
+  // Die Miniseite zeigt nur einen Ausschnitt. Ihr Rahmen ist so hoch wie dieser und rollt innen zur
+  // Lesestelle; einen hohen, weit verschobenen Rahmen zeichnet WebKit bei starker Verkleinerung nicht.
+  const miniSicht = () => el.miniseite.clientHeight || MINISEITE_HOEHE;
+
+  function htmlMasse(a) {
+    if (!a.rahmenHtml) return;
+    const sicht = a === miniseite ? miniSicht() : 0;
+    a.rahmenHtml.style.transform = `scale(${a.skala})`;
+    a.rahmenHtml.style.height = `${(sicht ? sicht / a.skala : a.hoehe).toFixed(1)}px`;
+    a.blatt.style.height = `${(sicht || a.hoehe * a.skala).toFixed(1)}px`;
+  }
+
+  // Letztes Stück des Lesetexts, das an oder vor einer Stelle beginnt
+  function segmentBei(pos) {
+    const s = htmlSeite.segmente;
+    let unten = 0;
+    let oben = s.length - 1;
+    let treffer = -1;
+    while (unten <= oben) {
+      const mitte = (unten + oben) >> 1;
+      if (s[mitte].aus <= pos) {
+        treffer = mitte;
+        unten = mitte + 1;
+      } else {
+        oben = mitte - 1;
+      }
+    }
+    return treffer < 0 ? null : s[treffer];
+  }
+
+  // Umfang eines Worts als Bereich im Dokument einer Ansicht
+  function wortBereich(a, w) {
+    if (!a.knoten || !w) return null;
+    const anfang = segmentBei(w.start);
+    const schluss = segmentBei(w.start + w.lang - 1);
+    if (!anfang || !schluss) return null;
+    const k1 = a.knoten[anfang.knoten];
+    const k2 = a.knoten[schluss.knoten];
+    if (!k1 || !k2) return null;
+    const bereich = a.doc.createRange();
+    try {
+      bereich.setStart(k1, anfang.off + Math.min(w.start - anfang.aus, anfang.laenge - 1));
+      bereich.setEnd(k2, schluss.off + Math.min(w.start + w.lang - schluss.aus, schluss.laenge));
+    } catch {
+      return null;
+    }
+    return bereich;
+  }
+
+  function markiereHtml(a, optionen) {
+    const bereich = a.doc ? wortBereich(a, z.woerter[z.pos]) : null;
+    let kasten = bereich && Array.from(bereich.getClientRects()).find((r) => r.width > 0 && r.height > 0);
+    if (kasten && a === miniseite) {
+      // Die Lesestelle soll etwas über der Mitte des Ausschnitts stehen
+      const roller = a.doc.scrollingElement || a.doc.documentElement;
+      const sicht = miniSicht() / a.skala;
+      const vorher = roller.scrollTop;
+      roller.scrollTop = Math.max(0, Math.min(a.hoehe - sicht, kasten.top + vorher - sicht * 0.4));
+      kasten = { left: kasten.left, top: kasten.top - (roller.scrollTop - vorher), width: kasten.width, height: kasten.height };
+    }
+    a.wort.hidden = !kasten;
+    a.zeile.hidden = !kasten;
+    if (!kasten) return;
+    const s = a.skala;
+    setzeMarke(a, kasten.left * s, kasten.top * s, Math.max(4, kasten.width * s), Math.max(4, kasten.height * s), optionen);
+  }
+
+  // Index des Worts, das eine Stelle des Lesetexts enthält
+  function wortAn(pos) {
+    let unten = 0;
+    let oben = z.woerter.length - 1;
+    let treffer = 0;
+    while (unten <= oben) {
+      const mitte = (unten + oben) >> 1;
+      if (z.woerter[mitte].start <= pos) {
+        treffer = mitte;
+        unten = mitte + 1;
+      } else {
+        oben = mitte - 1;
+      }
+    }
+    return treffer;
+  }
+
+  // Das Wort unter einem Klick auf eine HTML-Seite: Der Browser nennt Textknoten und Zeichen an der
+  // Stelle, Fixpunkt sucht das Stück des Lesetexts dazu. Klicks neben den Lesetext treffen nichts.
+  function wortBeiHtml(a, e) {
+    if (!a.doc || !a.knoten || !a.rahmen.contains(e.target)) return -1;
+    const r = a.blatt.getBoundingClientRect();
+    const x = (e.clientX - r.left) / a.skala;
+    const y = (e.clientY - r.top) / a.skala;
+    let knoten = null;
+    let off = 0;
+    if (typeof a.doc.caretPositionFromPoint === 'function') {
+      const p = a.doc.caretPositionFromPoint(x, y);
+      if (p) ({ offsetNode: knoten, offset: off } = p);
+    } else if (typeof a.doc.caretRangeFromPoint === 'function') {
+      const b = a.doc.caretRangeFromPoint(x, y);
+      if (b) ({ startContainer: knoten, startOffset: off } = b);
+    }
+    if (!knoten || knoten.nodeType !== 3) return -1;
+    if (!a.knotenIndex) a.knotenIndex = new Map(a.knoten.map((k, i) => [k, i]));
+    const nr = a.knotenIndex.get(knoten);
+    if (nr === undefined) return -1;
+    const s = htmlSeite.segmente;
+    let unten = 0;
+    let oben = s.length - 1;
+    let treffer = -1;
+    while (unten <= oben) {
+      const mitte = (unten + oben) >> 1;
+      if (s[mitte].knoten < nr || (s[mitte].knoten === nr && s[mitte].off <= off)) {
+        treffer = mitte;
+        unten = mitte + 1;
+      } else {
+        oben = mitte - 1;
+      }
+    }
+    // Ein Klick vor das erste Stück eines Textknotens gilt diesem Stück
+    if (treffer + 1 < s.length && s[treffer + 1].knoten === nr && (treffer < 0 || s[treffer].knoten !== nr)) treffer++;
+    if (treffer < 0 || s[treffer].knoten !== nr) return -1;
+    return wortAn(s[treffer].aus);
+  }
+
   // ---------- Seitenansichten ----------
-  // Drei Ansichten zeigen eine PDF-Seite mit markierter Lesestelle: klein in der Übersicht, als
-  // Miniseite neben den Knöpfen und in Lesegröße im Dialog. Jede zeichnet ihre eigene Leinwand;
-  // soll() liefert ihre Zielbreite.
+  // Drei Ansichten zeigen eine PDF- oder HTML-Seite mit markierter Lesestelle: klein in der Übersicht,
+  // als Miniseite neben den Knöpfen und in Lesegröße im Dialog. Jede zeichnet ihre eigene Leinwand
+  // oder ihren eigenen Rahmen; soll() liefert ihre Zielbreite.
 
   function neueAnsicht(fenster, rahmen, blatt, zeile, wort, soll) {
     return {
       fenster, rahmen, blatt, zeile, wort, soll, seite: 0, ziel: 0, b1: 0, breite: 0, skala: 1,
       aufgabe: null, zaehler: 0, nachzeichnen: 0, folge: null, handAb: -1e9,
+      rahmenHtml: null, doc: null, knoten: null, knotenIndex: null, hoehe: 0, htmlStand: -1, beobachter: null,
+      hoeheBild: 0, hoeheRunden: 0, hoeheZeit: 0,
     };
   }
   const klein = neueAnsicht(el.vorschau, el.seitenrahmen, el.blatt, el.markeZeile, el.markeWort, kleinBreite);
@@ -1526,12 +2022,18 @@ body {
   // Die Miniseite erscheint nur, wenn die Übersicht unter dem Lesebereich liegt. Ihr Rahmen bekommt
   // vorab Breite und Seitenverhältnis, damit die Knopfzeile beim Zeichnen nicht springt.
   function zeigeMiniseite() {
-    const an = Boolean(pdf.doc) && !BREIT.matches;
+    const an = (Boolean(pdf.doc) || htmlSeite.aktiv) && !BREIT.matches;
     el.miniseite.hidden = !an;
+    el.miniseite.classList.toggle('html', htmlSeite.aktiv);
     if (!an) return;
+    el.miniseiteRahmen.style.width = `${MINISEITE}px`;
+    if (htmlSeite.aktiv) {
+      el.miniseite.setAttribute('aria-label', 'Seite groß anzeigen');
+      zeichneHtml(miniseite);
+      return;
+    }
     const p = pdf.gewuenscht || 1;
     const s = pdf.seiten[p - 1];
-    el.miniseiteRahmen.style.width = `${MINISEITE}px`;
     el.miniseiteRahmen.style.aspectRatio = `${s.b} / ${s.h}`;
     if (pdf.gewuenscht && miniseite.seite !== p) zeichne(miniseite, p);
   }
@@ -1539,13 +2041,21 @@ body {
   function leere(a) {
     try { if (a.aufgabe) a.aufgabe.cancel(); } catch { /* bereits beendet */ }
     clearTimeout(a.nachzeichnen);
+    cancelAnimationFrame(a.hoeheBild);
+    if (a.beobachter) a.beobachter.disconnect();
     a.zaehler++;
-    Object.assign(a, { seite: 0, ziel: 0, b1: 0, breite: 0, skala: 1, aufgabe: null, folge: null });
+    Object.assign(a, {
+      seite: 0, ziel: 0, b1: 0, breite: 0, skala: 1, aufgabe: null, folge: null,
+      rahmenHtml: null, doc: null, knoten: null, knotenIndex: null, hoehe: 0, htmlStand: -1, beobachter: null,
+    });
     a.blatt.replaceChildren();
+    a.blatt.classList.remove('html');
+    a.blatt.style.height = '';
     a.zeile.hidden = true;
     a.wort.hidden = true;
     a.rahmen.style.width = '';
     a.rahmen.style.aspectRatio = '';
+    a.rahmen.style.transform = '';
     a.fenster.style.overflowX = '';
     a.fenster.scrollTo(0, 0);
   }
@@ -1563,6 +2073,7 @@ body {
     const f = a.fenster;
     a.rahmen.style.width = `${breite}px`;
     if (a.b1) a.skala = breite / a.b1;
+    htmlMasse(a);
     const cs = getComputedStyle(f);
     const innen = f.offsetWidth - 2 * f.clientLeft - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     const quer = breite > innen + 1;
@@ -1571,12 +2082,16 @@ body {
   }
 
   // Passt eine Ansicht an ihre Zielbreite an. Die alte Leinwand wird sofort per CSS gestreckt und
-  // kurz darauf in der neuen Größe scharf nachgezeichnet.
+  // kurz darauf in der neuen Größe scharf nachgezeichnet. Ein HTML-Rahmen bleibt beim Verkleinern scharf.
   function passe(a, optionen) {
     const breite = a.soll();
     setzeBreite(a, breite);
     markiere(a, optionen);
     clearTimeout(a.nachzeichnen);
+    if (a.rahmenHtml) {
+      a.breite = breite;
+      return;
+    }
     if (Math.abs(breite - a.breite) > 2) {
       a.nachzeichnen = setTimeout(() => { if (a.seite) zeichne(a, a.seite); }, 200);
     }
@@ -1616,7 +2131,7 @@ body {
     if (hoch > 1 && (zwingend || py < oben + sh * 0.12 || py + h > oben + sh * 0.85)) oben = py - sh * 0.35;
     if (quer > 1 && (zwingend || px < links + sb * 0.05 || px + b > links + sb * 0.95)) {
       // Möglichst vom linken Textrand aus zeigen und erst weiterrücken, wenn das Wort dann nicht ins Bild passt
-      const rand = a.rahmen.offsetLeft + pdf.seiten[a.seite - 1].rand * a.skala - 12;
+      const rand = a.rahmen.offsetLeft + (htmlSeite.aktiv ? 0 : pdf.seiten[a.seite - 1].rand * a.skala) - 12;
       links = px + b <= rand + sb * 0.95 ? rand : px - sb * 0.1;
     }
     oben = Math.round(Math.max(0, Math.min(hoch, oben)));
@@ -1668,6 +2183,10 @@ body {
   }
 
   function markiere(a, optionen) {
+    if (htmlSeite.aktiv) {
+      markiereHtml(a, optionen);
+      return;
+    }
     const w = z.woerter[z.pos];
     const sichtbar = Boolean(w && w.seite && w.seite === a.seite);
     a.wort.hidden = !sichtbar;
@@ -1681,12 +2200,24 @@ body {
     const y = it.y * s;
     const b = Math.max(4, it.b * (bis - von) * s);
     const h = Math.max(4, it.h * s);
+    setzeMarke(a, x, y, b, h, optionen);
+  }
+
+  function setzeMarke(a, x, y, b, h, optionen) {
     a.wort.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
     a.wort.style.width = `${b.toFixed(1)}px`;
     a.wort.style.height = `${h.toFixed(1)}px`;
     a.zeile.style.transform = `translateY(${(y - 2).toFixed(1)}px)`;
     a.zeile.style.height = `${(h + 4).toFixed(1)}px`;
+    // Die Miniseite einer HTML-Seite rollt in ihrem Rahmen selbst mit, siehe markiereHtml
+    if (a === miniseite && a.rahmenHtml) return;
     fuehreMit(a, x, y - 2, b, h + 4, optionen);
+  }
+
+  function markiereAlle() {
+    markiere(klein);
+    if (!el.miniseite.hidden) markiere(miniseite);
+    if (el.gross.open) markiere(gross);
   }
 
   function markiereSeite(i) {
@@ -1702,9 +2233,7 @@ body {
       }
       leisteAnteil(w.seite, i);
     }
-    markiere(klein);
-    if (!el.miniseite.hidden) markiere(miniseite);
-    if (el.gross.open) markiere(gross);
+    markiereAlle();
   }
 
   function baueLeiste() {
@@ -1799,6 +2328,7 @@ body {
   // vierfach, damit ein Klick zwischen zwei Zeilen nicht in die falsche rutscht. Liegt kein Wort
   // näher als die Toleranz in Punkt der Seite, gibt es keinen Treffer.
   function wortBei(a, e, toleranz = Infinity) {
+    if (htmlSeite.aktiv) return wortBeiHtml(a, e);
     const nr = a.seite;
     // Klicks auf Rollleisten und Ränder des Fensters treffen kein Wort
     if (!nr || pdf.starts[nr] < 0 || !a.rahmen.contains(e.target)) return -1;
@@ -1828,11 +2358,29 @@ body {
 
   // Lesegröße: so breit, wie das Fenster erlaubt, höchstens 880 und mindestens 720 px. Eine A4-Seite
   // zeigt 12-Punkt-Schrift damit mit 15 bis 18 px; auf dem Handy wird sie dafür seitlich verschiebbar.
-  function grossBreite() {
+  function grossInnen() {
     const f = el.grossFenster;
     const cs = getComputedStyle(f);
-    const innen = f.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-    const lesegroesse = Math.min(LESEBREITE_MAX, Math.max(innen, LESEBREITE_MIN));
+    return f.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  }
+
+  // Eine HTML-Seite bricht in der Großansicht in Fensterbreite um; − und + ändern ihre Schriftgröße.
+  // Schmaler als 320 px wird sie nicht gesetzt, dann rollt das Fenster seitlich.
+  function grossSatzbreite() {
+    return Math.max(HTML_SCHMAL, Math.round(grossInnen() / GROSS_STUFEN[z.grossStufe]));
+  }
+
+  function grossBreite() {
+    if (htmlSeite.aktiv) {
+      const satz = grossSatzbreite();
+      if (gross.rahmenHtml && satz !== gross.b1) {
+        gross.b1 = satz;
+        gross.rahmenHtml.style.width = `${satz}px`;
+        htmlHoehe(gross);
+      }
+      return Math.round(satz * GROSS_STUFEN[z.grossStufe]);
+    }
+    const lesegroesse = Math.min(LESEBREITE_MAX, Math.max(grossInnen(), LESEBREITE_MIN));
     return Math.round(lesegroesse * GROSS_STUFEN[z.grossStufe]);
   }
 
@@ -1843,6 +2391,12 @@ body {
   }
 
   function oeffneGross() {
+    if (htmlSeite.aktiv) {
+      pause();
+      if (!el.gross.open) el.gross.showModal();
+      zeigeGrossHtml();
+      return;
+    }
     const nr = klein.seite || pdf.gewuenscht;
     if (!pdf.doc || !nr) return;
     pause();
@@ -1850,10 +2404,21 @@ body {
     zeigeGrossSeite(nr);
   }
 
+  // Eine HTML-Seite hat keine Seitenzahlen, die Kopfzeile nennt ihren Namen
+  function zeigeGrossHtml() {
+    el.grossTitel.textContent = z.quelle.name;
+    el.grossZurueck.hidden = true;
+    el.grossVor.hidden = true;
+    zeigeGrossStufe();
+    zeichneHtml(gross, { sofort: true, zwingend: true });
+  }
+
   // Zeigt eine Seite groß. Steht die Lesestelle darauf, rückt das Fenster ihre Zeile ins obere Drittel.
   function zeigeGrossSeite(nr) {
     const p = Math.max(1, Math.min(pdf.seiten.length, nr));
     gross.ziel = p;
+    el.grossZurueck.hidden = false;
+    el.grossVor.hidden = false;
     el.grossTitel.textContent = `Seite ${zahl(p)} von ${zahl(pdf.seiten.length)}`;
     el.grossZurueck.setAttribute('aria-disabled', String(p === 1));
     el.grossVor.setAttribute('aria-disabled', String(p === pdf.seiten.length));
@@ -1890,6 +2455,11 @@ body {
     z.grossStufe = stufe;
     zeigeGrossStufe();
     speichereStand();
+    if (htmlSeite.aktiv) {
+      // Die Seite bricht neu um, die Lesestelle bleibt im Bild
+      if (gross.doc) passe(gross, { sofort: true, zwingend: true });
+      return;
+    }
     if (!gross.ziel) return;
     if (!gross.seite) {
       setzeBreite(gross, gross.soll());
@@ -1911,7 +2481,9 @@ body {
     if (i < 0) return;
     schliesseGross();
     springe(i);
-    melde(`Lesestelle gesetzt: Wort ${zahl(i + 1)} auf Seite ${zahl(z.woerter[i].seite)}.`);
+    melde(htmlSeite.aktiv
+      ? `Lesestelle gesetzt: Wort ${zahl(i + 1)}.`
+      : `Lesestelle gesetzt: Wort ${zahl(i + 1)} auf Seite ${zahl(z.woerter[i].seite)}.`);
     el.start.focus({ preventScroll: true });
   }
 
@@ -1948,13 +2520,15 @@ body {
 
   function waehleAnsicht(art) {
     z.ansicht = art;
-    const istPdf = Boolean(pdf.doc);
-    const seiten = istPdf && art === 'seiten';
-    el.umschalter.hidden = !istPdf || z.editor;
+    const hatSeiten = Boolean(pdf.doc) || htmlSeite.aktiv;
+    const seiten = hatSeiten && art === 'seiten';
+    const name = htmlSeite.aktiv ? 'Seite' : 'Seiten';
+    el.umschalter.hidden = !hatSeiten || z.editor;
+    el.ansichtSeiten.textContent = name;
     if (!z.editor) {
       el.seiten.hidden = !seiten;
       el.kontext.hidden = seiten;
-      el.titel.textContent = seiten ? 'Seiten' : 'Text';
+      el.titel.textContent = seiten ? name : 'Text';
     }
     el.ansichtSeiten.setAttribute('aria-pressed', String(seiten));
     el.ansichtText.setAttribute('aria-pressed', String(!seiten));
@@ -2010,13 +2584,17 @@ body {
     .catch(() => {});
   const pdfVergessen = () => idb('readwrite', (s) => s.delete('pdf')).catch(() => {});
   const pdfHolen = () => idb('readonly', (s) => s.get('pdf')).catch(() => null);
+  const htmlMerken = (quelltext, name, basis) => idb('readwrite', (s) => s.put({ quelltext, name, basis }, 'html')).catch(() => {});
+  const htmlVergessen = () => idb('readwrite', (s) => s.delete('html')).catch(() => {});
+  const htmlHolen = () => idb('readonly', (s) => s.get('html')).catch(() => null);
 
   // ---------- Geteilte Inhalte ----------
   // Auf GitHub Pages nimmt Fixpunkt geteilte Inhalte an. Ein Kurzbefehl auf dem iPhone öffnet die
-  // Seite mit dem Text im Adressanhang (#titel=…&text=…), der nicht an den Server geht. Der Text
-  // steht zuletzt und gilt bis zum Ende, damit ein unkodiertes & ihn nicht abschneidet.
-  // #zwischenablage öffnet das Eingabefeld zum Einfügen. Unter Windows und Android legt der Service
-  // Worker geteilte Dateien und Texte in IndexedDB ab und öffnet die Seite mit ?geteilt.
+  // Seite mit dem Inhalt im Adressanhang, der nicht an den Server geht: eine ganze Datei als Base64
+  // (#name=…&quelle=…&datei=…) oder reinen Text (#titel=…&text=…). Datei und Text stehen zuletzt und
+  // gelten bis zum Ende, damit ein unkodiertes & sie nicht abschneidet. #zwischenablage öffnet das
+  // Eingabefeld zum Einfügen. Unter Windows und Android legt der Service Worker geteilte Dateien und
+  // Texte in IndexedDB ab und öffnet die Seite mit ?geteilt.
 
   function entschluessele(s) {
     try {
@@ -2028,12 +2606,74 @@ body {
     }
   }
 
+  // Base64 aus dem Adressanhang oder der Zwischenablage. Zeilenumbrüche und Prozentkodierung, die
+  // unterwegs hineinkommen können, fallen weg; die URL-sichere Schreibweise geht ebenfalls.
+  function base64Bytes(roh) {
+    const s = String(roh || '')
+      .replace(/%([0-9a-f]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+      .replace(/\s+/g, '')
+      .replace(/-/g, '+')
+      .replace(/_/g, '/')
+      .replace(/=+$/, '');
+    if (!s || s.length % 4 === 1 || /[^A-Za-z0-9+/]/.test(s)) return null;
+    let binaer;
+    try {
+      binaer = atob(s + '='.repeat((4 - (s.length % 4)) % 4));
+    } catch {
+      return null;
+    }
+    const bytes = new Uint8Array(binaer.length);
+    for (let i = 0; i < binaer.length; i++) bytes[i] = binaer.charCodeAt(i);
+    return bytes;
+  }
+
+  // Ordnet geteilte Bytes nach ihrem Inhalt zu: PDF, HTML oder Text
+  async function nimmDateiDaten(bytes, name, basis) {
+    const kopf = String.fromCharCode(...bytes.subarray(0, 1024));
+    if (kopf.includes('%PDF-')) {
+      await oeffnePdf(new File([bytes], 'geteilt.pdf', { type: 'application/pdf' }), name);
+      return;
+    }
+    if (kopf.startsWith('bplist00')) {
+      melde('Angekommen ist ein Safari-Webarchiv, das Fixpunkt nicht lesen kann. Wählen Sie beim Teilen unter „Optionen“ das Format PDF.', true);
+      return;
+    }
+    if (/^(?:\x89PNG|\xFF\xD8\xFF|GIF8)/.test(kopf)) {
+      melde('Angekommen ist ein Bild. Fixpunkt liest PDF, HTML und Text.', true);
+      return;
+    }
+    const text = textAusBytes(bytes);
+    if (siehtNachHtmlAus(text)) await oeffneHtml(text, name, { basis });
+    else nimmGeteiltenText(text, name);
+  }
+
+  // Kopf eines Dateianhangs: name= oder titel= zuerst, quelle= zuletzt. Die Adresse gilt bis &datei=,
+  // damit ein unkodiertes & aus ihr nichts abschneidet.
+  function dateiAnhang(anhang) {
+    const anfang = anhang.startsWith('datei=') ? 0 : anhang.indexOf('&datei=') + 1;
+    if (!anfang && !anhang.startsWith('datei=')) return null;
+    const kopf = anfang ? anhang.slice(0, anfang - 1) : '';
+    if (kopf && !/^(?:name|titel|quelle)=/.test(kopf)) return null;
+    const stelle = kopf.search(/(?:^|&)quelle=/);
+    const roh = stelle < 0 ? '' : kopf.slice(stelle).replace(/^&?quelle=/, '');
+    const name = /(?:^|&)(?:name|titel)=([^&]*)/.exec(stelle < 0 ? kopf : kopf.slice(0, stelle));
+    return {
+      art: 'datei',
+      name: name ? entschluessele(name[1]) : '',
+      quelle: /^https?:/i.test(roh) ? roh : entschluessele(roh),
+      daten: anhang.slice(anfang + 'datei='.length),
+    };
+  }
+
   function geteiltesLesen() {
     const anhang = location.hash.slice(1);
     const treffer = /^(?:titel=([^&]*)&)?text=/.exec(anhang);
+    const datei = treffer ? null : dateiAnhang(anhang);
     let geteilt = null;
     if (treffer) {
       geteilt = { art: 'text', titel: treffer[1] ? entschluessele(treffer[1]) : '', text: entschluessele(anhang.slice(treffer[0].length)) };
+    } else if (datei) {
+      geteilt = datei;
     } else if (anhang === 'zwischenablage') {
       geteilt = { art: 'zwischenablage' };
     } else if (new URLSearchParams(location.search).has('geteilt')) {
@@ -2048,16 +2688,19 @@ body {
     const inhalt = String(text || '').trim();
     if (/^https?:\/\/\S+$/i.test(inhalt)) {
       melde('Angekommen ist nur die Adresse der Seite. Fixpunkt kann Webseiten nicht selbst laden. '
-        + 'Kopieren Sie den Text der Seite und fügen Sie ihn über „Text einfügen“ ein.', true);
+        + 'Teilen Sie die Seite als PDF, oder fügen Sie ihren Text über „Text einfügen“ ein.', true);
       return;
     }
-    const lesbar = /^<(?:!doctype|html|head|body|article|main|div|p|h[1-6])\b/i.test(inhalt) ? htmlZuText(inhalt) : inhalt;
-    if (!BUCHSTABE.test(lesbar)) {
+    if (siehtNachHtmlAus(inhalt)) {
+      oeffneHtml(inhalt, titel);
+      return;
+    }
+    if (!BUCHSTABE.test(inhalt)) {
       melde('Der geteilte Inhalt enthält keinen lesbaren Text.', true);
       return;
     }
     const name = titel || 'Geteilter Text';
-    nimmText(lesbar, name);
+    nimmText(inhalt, name);
     melde(`„${name}“ geöffnet, ${zahl(z.woerter.length)} Wörter.`);
   }
 
@@ -2068,11 +2711,15 @@ body {
   }).catch(() => null);
 
   async function nimmGeteiltes(geteilt) {
-    if (geteilt.art === 'text') {
+    if (geteilt.art === 'datei') {
+      const bytes = base64Bytes(geteilt.daten);
+      if (bytes && bytes.length) await nimmDateiDaten(bytes, geteilt.name, geteilt.quelle);
+      else melde('Die geteilte Datei ist nicht vollständig angekommen.', true);
+    } else if (geteilt.art === 'text') {
       nimmGeteiltenText(geteilt.text, geteilt.titel);
     } else if (geteilt.art === 'zwischenablage') {
       oeffneEditor();
-      melde('Tippen Sie auf „Aus Zwischenablage“, um den geteilten Text zu lesen.');
+      melde('Tippen Sie auf „Aus Zwischenablage“, um den geteilten Inhalt zu lesen.');
       el.zwischenablage.focus();
     } else {
       const eintrag = await geteiltHolen();
@@ -2083,6 +2730,16 @@ body {
       } else {
         melde('Der geteilte Inhalt ist nicht angekommen.', true);
       }
+    }
+  }
+
+  async function stelleHtmlWieder(name, pos) {
+    const gespeichert = await htmlHolen();
+    if (gespeichert && gespeichert.quelltext) {
+      melde('Seitenansicht wird wiederhergestellt …');
+      await oeffneHtml(gespeichert.quelltext, gespeichert.name || name, { basis: gespeichert.basis || '', startPos: pos, still: true });
+    } else {
+      melde('Die Seitenansicht ist auf diesem Gerät nicht mehr gespeichert. Öffnen Sie die Datei erneut, um sie wieder zu sehen.');
     }
   }
 
@@ -2208,7 +2865,8 @@ body {
     el.start.focus({ preventScroll: true });
     el.app.scrollIntoView({ block: 'start', behavior: bewegungErlaubt() ? 'smooth' : 'auto' });
   });
-  // Safari fragt beim Lesen der Zwischenablage selbst nach und zeigt dazu „Einfügen“
+  // Safari fragt beim Lesen der Zwischenablage selbst nach und zeigt dazu „Einfügen“. Ein Kurzbefehl
+  // kann dort auch eine ganze Datei als Base64 ablegen.
   el.zwischenablage.addEventListener('click', async () => {
     let text = '';
     try {
@@ -2216,6 +2874,12 @@ body {
     } catch {
       melde('Fixpunkt darf die Zwischenablage hier nicht lesen. Fügen Sie den Text ins Feld ein.', true);
       el.eingabe.focus();
+      return;
+    }
+    const bytes = text.length >= 64 && /^[A-Za-z0-9+/=_\-\s]+$/.test(text) ? base64Bytes(text) : null;
+    if (bytes && bytes.length) {
+      schliesseEditor();
+      await nimmDateiDaten(bytes, '', '');
       return;
     }
     el.eingabe.value = text;
@@ -2343,7 +3007,7 @@ body {
       if (eintrag.target === el.band) {
         leseAchse();
         richteAus();
-      } else if (eintrag.target === el.vorschau && pdf.doc) {
+      } else if (eintrag.target === el.vorschau && (pdf.doc || htmlSeite.aktiv)) {
         cancelAnimationFrame(anpassenKlein);
         anpassenKlein = requestAnimationFrame(() => passeKlein());
       } else if (eintrag.target === el.grossFenster && el.gross.open && gross.seite) {
@@ -2382,9 +3046,10 @@ body {
     const text = lade(SCHLUESSEL_TEXT);
     // Kommt etwas Geteiltes, darf die alte PDF nicht nachladen und es überschreiben
     const geteilt = geteiltesLesen();
-    if (quelle && (quelle.art === 'text' || quelle.art === 'pdf') && text) {
+    if (quelle && ['text', 'pdf', 'html'].includes(quelle.art) && text) {
       setzeText(text, { art: quelle.art, name: String(quelle.name || 'Eigener Text') }, pos);
       if (quelle.art === 'pdf' && !geteilt) stellePdfWieder(String(quelle.name || 'PDF'), pos);
+      if (quelle.art === 'html' && !geteilt) stelleHtmlWieder(String(quelle.name || 'Seite'), pos);
     } else {
       setzeText(BEISPIEL, { art: 'beispiel', name: 'Beispieltext' }, quelle && quelle.art === 'beispiel' ? pos : 0);
     }
@@ -2409,6 +3074,10 @@ body {
       gezeichnet: klein.seite, seiten: pdf.seiten.length, breite: klein.breite,
       gross: { offen: el.gross.open, seite: gross.seite, ziel: gross.ziel, breite: gross.breite },
       miniseite: { sichtbar: el.miniseite.offsetWidth > 0, seite: miniseite.seite },
+      html: {
+        aktiv: htmlSeite.aktiv, klein: Boolean(klein.doc), gross: Boolean(gross.doc), miniseite: Boolean(miniseite.doc),
+        hoehe: klein.hoehe, satzbreite: gross.b1,
+      },
     }),
     woerter: () => z.woerter.map((w) => ({ t: w.t, satz: w.satz, ende: w.ende, abs: w.abs, seite: w.seite || 0 })),
     seitenStart: (p) => (pdf.starts[p] === undefined ? -1 : pdf.starts[p]),
